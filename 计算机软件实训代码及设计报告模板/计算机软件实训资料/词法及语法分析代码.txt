@@ -1,0 +1,806 @@
+// cffx.cpp : Defines the entry point for the console application.
+//
+
+/*
+* 程序名称：编译原理之词法分析器、语法分析器
+* 输    入：Test.c C语言源程序文件
+* 输    出：Const.txt 常量表 Sign.txt 标识符表 Result.txt 二元式结果
+* 
+* 编译环境：VC6.0_CN
+* 操作系统：WinXP_SP2
+* 
+* 备    注：此程序采用一缓冲方式读入程序源码，首先进行预处理去掉注释和无效空格
+*           然后再进行详细的词法分析和语法分析。为了便于后续处理，程序设置了几个表：符号
+*           表和常数表。
+* 注    意：此分析器只对C语言子集进行处理
+*/
+
+#include "stdio.h"
+#include "ctype.h"
+#include "string.h"
+#include "conio.h"
+#include "stdlib.h"
+//#include <iostream>
+/****************************词法分析数据结构定义*************************/
+#define KEYWORD_LEN 3        
+#define STR_MAX_LEN 300        
+#define PRO_MAX_LEN 20480    
+#define STB_MAX_LEN 1000    
+#define CTB_MAX_LEN 1000    
+
+#define ERROR    0                
+#define ID        (KEYWORD_LEN+1)    
+#define CONST    (KEYWORD_LEN+2)    
+#define OPERAT    (KEYWORD_LEN+3)    
+#define DIVIDE    (KEYWORD_LEN+4)    
+
+#define MAX 20 
+#define VNNUM 14	//非终结符个数
+#define VTNUM 15	//终结符个数
+typedef struct signDuality
+{
+    int kind;  //单词的类型
+    char value[20]; //单词的值
+}*pDualistic, Dualistic;
+Dualistic  TokenList[100];//单词流数据结构定义
+
+int iPos;
+int ListLength=0;//单词流的长度
+int  errorLine=0;
+char proBuffer[PRO_MAX_LEN] = "";    
+char ch;           
+int row,col;    //用于存储状态转换矩阵的行号row和列号col
+int StateTbl[50][100];  //存储状态转换矩阵的二维数组           
+char wordget[STR_MAX_LEN]; //用于临时存放提取单词的字符数组   
+  
+int k;      
+int  point = 0;                        
+struct VarInfo//变量信息表定义
+{
+    char kind; //变量编码
+	char name[STB_MAX_LEN]; //变量名字
+}signTab[100];  
+
+struct ConstInfo //常量信息表定义
+{
+  char StoreType[10];//常量类型
+  int kind; //常量的编码
+  char value[10]; //常量的值 
+}constTab[100]; 
+
+int  pointSTB = 0;                    
+   
+int  pointCTB = 0;                    
+char kwTab[KEYWORD_LEN][10]={"int", "real","main"};//关键字列表
+char errorTab[][50]={                
+    /*0*/"未知错误",    /*1*/"非法的字符",    /*2*/"不正确的字符常量表达",
+    /*3*/"不正确的字符串表达",    /*4*/"不正确的数字表达",    /*5*/"注释丢失'*/'"};
+
+int read_SouceCode(); //从文件test.c读入源代码到数组proBuffer[]中
+void pretreatment();    //对源代码进行预处理，去掉源代码中的注释语句
+bool wordAnalyse(pDualistic pDu);  //词法分析
+int OutPut_Result(); //将单词流TokenList[]中的所有单词写入文件result.txt中
+int OutPut_Const(); //将常量信息表constTab[]中的所有常量写入文件Const.txt中
+int OutPut_Sign();	 //将变量信息表signTab[]中的所有变量写入文件Sign.txt中
+void ProcError(int id);   
+bool GetChar();   
+int  Reserve(char *str);   
+void Retract();            
+int InsertId(int kind,char *str);     //将变量插入变量信息表中
+int InsertConst(int kind,char str[]); //将常量插入常量信息表中
+bool Process(int *iState,pDualistic ptmp,int iPos);
+int SearchSymbol(char code[],char Symbol);//在code字符串中查找第一次出现ch字符的下标  
+void trim(char word[]); //去掉单词中的换行符和空格符  
+void ReadToStaArray();
+
+/***********************************语法分析数据结构********************************/
+
+int stack[MAX]; //定义栈stack，栈中存储的是每一个终结符、非终结符的编码转换成的整数
+int stacklength=0; //定义stacklength，用于存储栈的长度
+int top; //top存储栈顶元素
+char tp[30]="";; 
+int identy[MAX]; //定义数组identy[],用于存储已经识别的单词,每个单元存储的是单词的编码
+int n=0; 
+
+struct Vn  //定义结构体表示非终结符
+{
+  int kind; //非终结符编码
+  char name[50];//非终结符名字
+};
+//定义数组Vn_array[],存储所有的非终结符,每一个单元存储非终结符的编码
+struct Vn Vn_array[VNNUM] ={{200,"程序"},{201,"语句部分"},{202,"声明部分"},{203,"标识符列表"},{204,"基本类型"},{205,"语句序列"},{206,"表达式"},{207,"因式"},{208,"因子"},{209,"常量"},{210,"运算符"},{211,"语句序列1"},{212,"变量定义"},{213,"标识符列表1"}};
+struct Vt  //定义结构体表示非终结符
+{
+  int kind; //非终结符编码
+  char name[50];//非终结符名字
+};
+//定义数组Vt_array[],存储所有的终结符,每一个单元存储终结符的编码,因此这是个指针数组
+struct Vt Vt_array[VTNUM] = {{1,"标识符"},{45,"int"},{46,"real"},{47,"main"},{58,"("},{59,")"},{54,"{"},{55,"}"},{60,";"},{61,","},{70,"+"},{71,"-"},{84,"="},{85,"整型常量"},{86,"实型常量"}};
+
+char Vp_array[30][30];  //二维数组Vp_array用于存储文法，每个产生式用一个字符串表示
+
+char  *LL1_array[][16]={  //定义二维指针数组LL1_array，每一个单元指向一个字符串，该字符串是LL1预测分析表表格中的产生式
+{" "," "," ","047058059054201055"," "," "," "," "," "," "," "," "," "," "," "," "},
+{"202205","202205","202205"," "," "," "," "," "," "," "," "," "," "," "," "," "},
+{"000","212060202","212060202"," "," "," "," "," "," "," "," "," "," "," "," "," "},
+{"001213"," "," "," "," "," "," "," "," "," "," "," "," "," "," "," "},
+{" ","045","046"," "," "," "," "," "," "," "," "," "," "," "," "," "},
+{"001084209060211"," "," "," "," "," "," ","000"," "," "," "," "," "," "," "," "},
+{"208207"," "," "," "," "," "," "," "," "," "," "," "," ","208207","208207"," "},
+{" "," "," "," "," "," "," "," ","000"," ","210208","210208"," "," "," "," "},
+{"001"," "," "," "," "," "," "," "," "," "," "," "," ","209"," "," "},
+{" "," "," "," "," "," "," "," "," "," "," "," "," ","085","086"," "},
+{" "," "," "," "," "," "," "," "," "," ","070","071"," "," "," "," "},
+{"001084206060211"," "," "," "," "," "," ","000"," "," "," "," "," "," "," "," "},
+{" ","204203","204203"," "," "," "," "," "," "," "," "," "," "," "," "," "},
+{" "," "," "," "," "," "," "," ","000","061001213"," "," "," "," "," "," "},
+};
+int read_wenfa();//从存储文法的文件wenfa.txt中读取文法到内存Vp_array[][]数组中
+void init_stack(); //初始化栈
+int ll1_analyzing(); //用LL1分析法进行语法分析
+void ll1array_push(int); //将LL1分析表中以栈顶元素top为行号、以单词流中的单词TokenList[i]编码为列号的表格中存储的产生式逆序压入栈stack中
+int is_Vt(); //判断栈顶元素是否为终结符，如果是返回1，否则返回-1
+int is_ll1array(int); //当栈顶元素为非终结符时，判断LL1分析表中行号为栈顶元素，列号为要匹配的单词的单元是否存在产生式，存在返回1，不存在返回-1
+int Vn_idx(); //求栈顶元素在LL1分析表中对应的行号，返回该行号
+int Vt_idx(int); //求要匹配的单词在LL1分析表中对应的列号，返回该列号
+void pop(); //栈顶元素出栈
+void push(int elt);  //压栈
+void reve(int code[],int n) ;  //将存放在code[]中的产生式逆序
+int printerror(); //输出错误信息
+char *Name(int kind); //返回编码对应的终结符或非终结符的名字
+
+int main(int argc, char* argv[])
+{
+    pDualistic ptmp = TokenList;
+
+    printf("源代码读入\n");
+    read_SouceCode();  //从文件test.c读入源代码到数组proBuffer[]中
+	printf("\n***************************\n源代码读入成功，源代码如下:\n%s",proBuffer);
+    printf("\n按任意键继续\n");    getch();
+
+    printf("\n预处理\n");
+    pretreatment();  //对源代码进行预处理，去掉源代码中的注释语句
+   
+    printf("\n词法分析\n");
+ 
+    wordAnalyse(ptmp);//词法分析，将所有的单词提取出来并存入单词流TokenList【】
+      
+	OutPut_Result();     //将单词流TokenList[]中的所有单词写入文件result.txt中
+
+    printf("写回常量表和标识符表\n");
+	OutPut_Const();		 //将常量信息表constTab[]中的所有常量写入文件Const.txt中
+	OutPut_Sign();		 //将变量信息表signTab[]中的所有变量写入文件Sign.txt中
+
+	printf("\n写入完毕\n按任意键继续\n");    
+	getch();
+
+	printf("\n词法分析\n");       	
+	read_wenfa(); //从存储文法的文件wenfa.txt中读取文法到内存Vp_array[][]数组中
+
+	init_stack(); //初始化栈stack
+	ll1_analyzing(); //用LL1分析法进行语法分析
+
+    return 0;
+}
+
+int read_SouceCode()//从文件test.c读入源代码到数组proBuffer[]中
+{
+    FILE *fin;
+    int i;
+    char c;
+
+
+    if ((fin=fopen("Test.c","r")) == NULL)
+    {
+        printf("Cannot open infile\n");
+        return 0;
+    }
+    i = 0;
+    while((c = fgetc(fin)) != EOF)
+    {
+        if(i >= PRO_MAX_LEN-1)
+        {
+            printf("\n程序代码太长，无法处理\a");
+            return 0;
+        }
+        proBuffer[i++] = c;
+    }
+    fclose(fin);    
+    proBuffer[i++] = '\0';
+	return 0;
+}
+void pretreatment()  //
+{int lines=0;
+    char tmp[PRO_MAX_LEN];    
+                            
+    int tmpp = 0;    
+    bool flg;
+    char tmpc;
+    
+    
+    point = 0;
+    do
+    {
+        flg = GetChar();
+
+        if(ch == '/')
+        {
+            flg = GetChar();
+            switch(ch)
+            {
+            case '/':
+                do
+                {
+                    flg = GetChar();                    
+                }while(!(ch == '\n' || flg == false));
+                if(ch == '\n')
+                    Retract();   
+                break;
+            case '*':
+                do
+                {
+                    flg = GetChar();
+                    tmpc = ch;
+                    
+                    if(tmpc == '\n')
+                        tmp[tmpp++] = tmpc;
+                    flg = GetChar();
+                    Retract();    
+                }while(flg && !(flg && tmpc == '*' && ch == '/'));
+                flg = GetChar();
+                if (!flg)
+                {
+                    ProcError(5);
+                }
+                break;
+            default:
+                
+                Retract();
+                Retract();
+                GetChar();
+                tmp[tmpp++] = ch;
+                flg = GetChar();
+                tmp[tmpp++] = ch;
+            }
+        }
+        else
+        {
+            tmp[tmpp++] = ch;
+        }
+    }while(flg);
+    tmp[tmpp] = '\0';
+	
+     strcpy(proBuffer,tmp);
+	printf("\n***************************\n预处理成功，去掉注释后的源代码为:\n%s*",proBuffer);
+    printf("\n按任意键继续\n");    getch();
+}
+
+int OutPut_Result() //将单词流TokenList[]中的所有单词写入文件result.txt中
+{
+    FILE *fout;
+
+ 
+    if ((fout=fopen("Result.txt","wb")) == NULL)
+    {
+        printf("建立文件Result.txt失败。\n");
+        return 0;
+    }
+
+    errorLine = 0;   
+
+    for(int i = 0;i<ListLength;i++)
+    {
+
+        if(TokenList[i].kind==0)
+            fprintf(fout, "出    错：<%4d , %10s >\r\n",TokenList[i].kind,TokenList[i].value);
+		else if(TokenList[i].kind==1)
+            fprintf(fout, "标识符：<%4d , %10s >\r\n",TokenList[i].kind,TokenList[i].value);
+        else if(TokenList[i].kind>=45&&TokenList[i].kind<=53)
+			fprintf(fout,"关键字：<%4d , %10s >\r\n",TokenList[i].kind,TokenList[i].value);
+		else if(TokenList[i].kind>=54&&TokenList[i].kind<=68)
+            fprintf(fout, "界    符：<%4d , %10s >\r\n",TokenList[i].kind,TokenList[i].value);
+		else if(TokenList[i].kind>=70&&TokenList[i].kind<=84)
+            fprintf(fout, "运算符：<%4d , %10s >\r\n",TokenList[i].kind,TokenList[i].value);
+		else if(TokenList[i].kind>=85&&TokenList[i].kind<=86)
+            fprintf(fout, "常    量：<%4d , %10s >\r\n",TokenList[i].kind,TokenList[i].value);
+
+      }
+      fprintf(fout, "\r\n");        
+
+	  fclose(fout);
+      return 0;
+}
+int OutPut_Const()		 //将常量信息表constTab[]中的所有常量写入文件Const.txt中
+{
+    FILE *fout;
+
+    if ((fout=fopen("Const.txt","wb")) == NULL)
+    {
+        printf("建立文件Const.txt失败。\n");
+        return 0;
+    }
+
+    for(int i = 0; i < pointCTB; ++i)
+        fprintf(fout, "(%3d) %6s %s\r\n",i+1, constTab[i].StoreType,constTab[i].value);
+
+    fclose(fout);
+	return 0;
+}
+int OutPut_Sign()		 //将变量信息表signTab[]中的所有变量写入文件Sign.txt中
+{
+    FILE *fout;
+
+    if ((fout=fopen("Sign.txt","wb")) == NULL)
+    {
+        printf("建立文件Sign.txt失败。\n");
+        return 0;
+    }
+
+    for(int i = 0; i < pointSTB; ++i)
+        fprintf(fout, "(%3d) %s\r\n",i, signTab[i].name);
+
+    fclose(fout);
+	return 0;
+}
+void ProcError(int id)
+{
+    printf("\nError:第%d行,%s\n",errorLine, errorTab[id]);
+}
+
+
+bool GetChar()
+{
+    if(point < PRO_MAX_LEN && proBuffer[point] != '\0')
+    {
+        ch = proBuffer[point++];
+        if (ch == '\n')
+            errorLine ++;
+        return true;
+    }
+    ch = '\0';
+    return false;
+}
+
+
+int Reserve(char *str)
+{
+    int i;
+    for(i=0; i<KEYWORD_LEN; ++i)    
+    {
+        if(0 == strcmp(kwTab[i], str))
+            return i+1;    
+    }
+    return 0;
+}
+
+void Retract()
+{ 
+    if(proBuffer[point] == '\n' && errorLine > 0)
+        errorLine --;
+    point --;
+}
+
+
+int InsertId(int kind,char *str)//将变量插入变量信息表中
+{
+    int i;
+    for(i=0; i < pointSTB; ++i)
+        if(0 == strcmp(signTab[i].name, str))
+            return i;
+	signTab[pointSTB].kind=kind;
+    strcpy(signTab[pointSTB++].name, str);
+    return (pointSTB-1);
+}
+
+
+int InsertConst(int kind,char str[])//将常量插入常量信息表中
+{
+    int i;
+    for(i=0; i < pointCTB; ++i)
+        if(0 == strcmp(constTab[i].value, str))
+            return i;
+	constTab[pointCTB].kind=kind;
+	if(kind==85)
+		strcpy(constTab[pointCTB].StoreType,"int");
+	else if(kind==86)
+		strcpy(constTab[pointCTB].StoreType,"real");
+
+    strcpy(constTab[pointCTB++].value,str);
+    return (pointCTB-1);
+}
+void ReadToStaArray()
+{
+
+	FILE *fp;
+	row=0;col=0;
+	if((fp=fopen("zhjz.txt","r")) == NULL)
+	{
+		printf("文件不存在！");
+		exit(0);
+	}
+
+
+	char ch;
+	ch=fgetc(fp);
+	while(!feof(fp))//判断文件是否结束，结束返回1 
+	{
+		int i=0;
+        char s[]="";
+
+		while(ch!='\t'&&ch!='\r'&&ch!='\n') 
+		{
+			s[i++]=ch;
+			ch=fgetc(fp);
+		
+		}
+		s[i]='\0';
+	    if(ch =='\t'||ch =='\r'){
+		
+			StateTbl[row][col++]=atoi(s);//跳过前面的空白字符(例如空格，tab缩进)等， 
+		
+		}
+		else if(ch == '\n')
+		{
+			StateTbl[row][col++]=atoi(s);
+			row++;col=0;
+		}			
+
+		ch=fgetc(fp);
+	
+	}
+	
+	fclose(fp);
+
+}
+int SearchSymbol(char code[],char ch)  //在code字符串中查找第一次出现ch字符的下标    
+{
+	int i;
+  for( i=0;i<strlen(code);i++)
+	  if(code[i]==ch) break;
+  return i;
+}
+bool Process(int *iState,pDualistic ptmp) 
+{
+
+  if(*iState==0)//如果当前状态为0，则说明单词拼写错误
+	return false;
+  else if(*iState<0)//如果当前状态<0，则说明该单词已经提取完毕，需要根据状态的值判断该单词的类型
+  {
+
+	  wordget[k-1]='\0';
+	  trim(wordget);//去掉单词中的换行符和空格符
+
+	  iPos--;
+	  if(*iState==-1) //标识符
+	  {
+		  ptmp=ptmp+ListLength;		 
+		  //在关键字表kwTab中查找该单词是否是关键字
+		  for(int i=0;i<KEYWORD_LEN;i++)
+			if(strcmp(wordget,kwTab[i])==0) break;
+		  //将wordget[]中的单词存入单词流
+		  if(i<KEYWORD_LEN) //如果该单词是关键字
+		  {
+		    ptmp->kind=45+i;  //将关键字的编码赋值给该单词的kind成员			
+		   	strcpy(ptmp->value,wordget);//将关键字字符串赋值给单词的value成员
+		  }
+		else  //单词是变量标识符
+		  {
+		    ptmp->kind=1;   //单词的kind成员赋值为标识符编码1
+		   	strcpy(ptmp->value,wordget);//将变量标识符字符串赋值给单词的value成员
+			InsertId(ptmp->kind,ptmp->value);	//将标识符单词存入变量信息表
+		  }
+			ListLength++;
+
+	  }
+	  else if(*iState>=-64&&*iState<=-54) //界符
+	  {
+			//将wordget[]中的单词存入单词流
+		    ptmp=ptmp+ListLength;	
+		    ptmp->kind=-(*iState);
+			strcpy(ptmp->value,wordget);
+			ListLength++;
+	  }
+	  else if((*iState)>=-84&&(*iState)<=-70) //运算符
+	  {
+	  		//将wordget[]中的单词存入单词流
+		    ptmp=ptmp+ListLength;	
+		    ptmp->kind=-(*iState);
+			strcpy(ptmp->value,wordget);
+			ListLength++;
+	  }
+	  else if((*iState)>=-87&&(*iState)<=-85) //常量
+	  {
+	  		//将wordget[]中的单词存入单词流
+		  	ptmp=ptmp+ListLength;	
+		    ptmp->kind=-(*iState);
+			strcpy(ptmp->value,wordget);
+	
+
+			//将单词存入常量信息表
+			InsertConst(ptmp->kind,ptmp->value);
+			ListLength++;
+	  }
+
+      strcpy(wordget,"");
+	  k=0;
+	  *iState=1;
+  }
+  else 
+	  row=*iState;
+  return true;
+}
+void trim(char word[]) //去掉单词中的换行符和空格符
+{
+  for(char *p=word;p<p+strlen(word);p++) //如果当前字符是换行符则继续读入下一个字符直到不是换行符为止
+	  if(*p=='\n'||*p==' ') continue;
+	  else break;
+  strcpy(word,p);
+}
+bool wordAnalyse(pDualistic pDu)
+{
+//	printf("heoolo");
+  //定义字符数组Symbol[]用于存储所有的字符
+	char SymbolArr[]="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/{}+-*%&|!><=();,:.\"\r\n \t[]~`@#$^_?\\";
+    k=0;
+	bool Tag=true;
+	iPos=0;//用于存储当前字符在源代码中的位序号
+	char iSymbol;//存储当前字符
+
+//调用函数ReadToStaArray()，读入文件zhjz.txt（该文件存储的是状态转换矩阵）到内存StateTbl[][]中
+    ReadToStaArray();
+	
+
+	int iState=1;//定义整型变量iState，并初始化为初始状态1
+
+  
+	//循环读入源代码中的每一个字符，对单词进行提取
+	while(iPos<=strlen(proBuffer)&&Tag) //如果当前字符的位序号i小于源代码的长度并且当前状态Tag为真
+	{
+      iSymbol=proBuffer[iPos++];//将源代码放入ISymobol 
+	  wordget[k++]=iSymbol; //将源代码中的第i个字符追加到wordget[]数组的末尾，wordget[]是用于存储正在提取的单词的缓冲区
+	  row=iState;
+      col=SearchSymbol(SymbolArr,iSymbol);//定位当前字符在字符数组Symbol[]中的下标号,将这个下标号存入整型变量col中，用于记录状态转换矩阵的列号
+//      printf("%d",col);
+	  iState=StateTbl[row-1][col];//从状态转换矩阵StateTbl[][]中查找iState状态在读入下标为col的字符时要转换成的状态
+      Tag=Process(&iState,pDu);//根据状态iState的值查询状态转换矩阵，根据状态转换矩阵的值进行下一步处理
+	  if(!Tag) return false;
+	  
+	}
+	return true;
+}
+
+
+/*************************语法分析******************************/
+
+int read_wenfa()//从存储文法的文件wenfa.txt中读取文法到内存Vp_array[][]数组中
+{
+  FILE *fp;
+  if ((fp=fopen("wenfa.txt","r")) == NULL)
+  {
+        printf("文件wenfa.txt不存在。\n");
+        return 0;
+  }
+
+  int i=0;  
+  while(!feof(fp))	//如果文件指针没有指向文件尾就继续
+  {
+	fscanf(fp,"%s",Vp_array[i]);  //从文件wenfa.txt中读出一个产生式的字符串存储到Vp_array[i]中
+	i++;
+  }
+  fclose(fp);
+  return 0;
+}
+
+
+void init_stack() //初始化栈
+{ 
+   stack[0] = 999;//在栈底放入‘#’的编码999 
+   stack[1] = Vn_array[0].kind;//将文法的开始符压入栈stack
+   printf("%s=>",Vn_array[0].name); //在屏幕上输出开始符号=〉
+   stacklength+=2;
+} 
+
+
+int ll1_analyzing() //用LL1分析法进行语法分析
+{ 
+    top = stack[1]; //栈顶元素存入top
+
+	int error; //用于存储错误状态
+   for (int i=0;i<=ListLength;i++) //与单词流TokenList[i]中的每一个单词进行匹配
+   {
+      int tet; 
+	  tet = is_Vt(); //判断栈顶元素top是否是终结符，如果是is_Vt()返回1，否则返回-1，将返回值赋值给tet
+      if (1 == tet)  //栈顶元素top是终结符
+	  { 
+         if (top == TokenList[i].kind) //如果栈顶元素top与单词流TokenList[i]中的单词匹配
+		 {
+            identy[n++] = top; //将栈顶元素top存入已识别单词数组identy[]中
+            pop();  //将栈顶元素top出栈
+            continue; //继续进入下一次循环
+         } 
+         else  //如果栈顶元素top与单词流TokenList[i]中的单词不匹配
+		 { 
+            printerror(); //输出错误信息
+            break; //退出循环
+         } 
+      } 
+      else if (999 == top)  //如果栈顶元素top为符号‘#’的编码999，说明LL1分析结束
+	  {  
+         for (int p=0;p<ListLength;p++)  //将单词流TokenList[]中的每一个单词输出到屏幕
+		       printf("%s ", TokenList[p].value); 
+         break; 
+      } 
+      else  //栈顶元素为非终结符
+	  { 
+         do  
+		 { 
+               int judge=0; 
+               judge = is_ll1array(TokenList[i].kind); //判断判断LL1分析表中行号为栈顶元素，列号为要匹配的单词TokenList[i].kind的表格中是否存在产生式，存在返回1，不存在返回-1
+               if (judge == 1) //LL1分析表的表格中存在产生式
+			   { 
+                  if (1 == is_Vt()) //is_Vt()判断栈顶元素top是否为终结符，是返回1，否则返回-1。如果是终结符，它与LL1分析表中存在产生式相矛盾，只有在栈顶元素为非终结符时LL1分析表中才有产生式要替换栈顶元素
+				  {     
+                     error=printerror(); //在屏幕上输出错误信息，并将错误状态赋值给error
+				     break; //退出循环
+                  }  
+                  ll1array_push(TokenList[i].kind); //将LL1分析表中以栈顶元素top为行号、以单词流中的单词TokenList[i]为列号的表格中存储的产生式逆序压入栈stack中
+ 
+				  //输出推导过程
+				  for(int j=0;j<n;j++)
+			         printf("%s ", Name(identy[j])); //输出存储已识别的字符串数组identy
+				  for(j=stacklength-1;j>0;j--)
+					 printf("%s ",Name(stack[j]));  //输出栈中的元素
+				  printf("\n=>");
+			   } 
+               else //LL1分析表的表格中不存在产生式
+			   { 
+                  error = printerror(); //在屏幕上输出错误信息，并将错误状态赋值给error
+                  break; //退出循环
+               } 
+                               
+           }while (top != TokenList[i].kind); //如果栈顶元素top与单词流中的单词TokenList[i]不匹配，则继续循环
+           if (error == 1)  break;   //如果错误状态是1，则退出循环，不再与后面的单词继续进行匹配
+           identy[n++] = top; //将栈顶元素top存入已识别单词数组identy[]中
+
+           if (top != 999) //如果栈顶元素top为'#'的编码999，则出栈 
+			   pop(); 
+
+	  }  
+   } 
+   if(error==1)return 0; //如果error状态为1，说明源代码语法不合法，返回0。
+   else //如果源代码语法合法
+   {
+	   printf("这是一句合法的句子!分析成功"); //在屏幕上输出 "这是一句合法的句子！""分析成功"
+	   getchar();
+	   return 1;
+   }
+} 
+
+void ll1array_push(int cutchar) 
+//将LL1分析表中以栈顶元素top为行号、以单词流中的单词TokenList[i]为列号的表格中存储的产生式逆序压入栈stack中
+{ 
+   int i,j; 
+   i=Vn_idx();    //读取栈顶元素top中的非终结符在数组Vn_array[]中的下标号，返回该下标号并赋值给变量i
+   j=Vt_idx(cutchar);  //读取单词编码为cutchar的终结符在数组Vt_array[]中的下标号，返回该下标号并赋值给变量j
+   strcpy(tp,LL1_array[i][j]); //从LL1分析表中读取行号为i，列号为j的表格中存储的产生式右部，用指针tp指向该产生式的字符串
+   char *p=tp ;
+   char tmp[3]="";
+   int code[20];
+
+   for(int n=0;n<strlen(tp)/3;n++)
+   {
+	   for(int k=0;k<3;k++) //取出tp指针指向的字符串中的3位存入数组tmp[]中
+		 tmp[k]=*p++;
+	   tmp[k]='\0';
+	   code[n]=atoi(tmp); //将编码字符串转换成整数存入code[]数组中
+//  printf("%s ",Name(code[n])); 
+   }
+   
+   reve(code,n); //将tp指向的产生式字符串逆序
+   pop(); //栈顶元素top出栈
+
+   for(k=0;k<n;k++)
+	   push(code[k]); //将tmp[]中的字符串转换成整数压入栈stack中
+
+
+// printf("=>"); 
+   if (top == 0) //如果栈顶元素top为0,说明栈顶元素是空串
+      pop(); //将栈顶的空串出栈    
+} 
+char *Name(int kind) //返回编码对应的终结符或非终结符的名字
+{
+
+   int hot=0; 
+   for (int i=0;i<VTNUM;i++) 
+   { 
+      if(kind == Vt_array[i].kind) 
+		return Vt_array[i].name;
+   } 
+	hot=0;
+   for (i=0;i<VNNUM;i++)
+   { 
+      if(kind == Vn_array[i].kind) 
+		return Vn_array[i].name;
+   }
+	
+}
+void pop() //栈顶元素出栈
+{ 
+   int tom; 
+   stacklength--; //栈长度减1
+   tom = stacklength-1; 
+ //  stack[tom] = '\0'; 
+   top = stack[tom]; //将栈顶元素赋值给变量top
+
+} 
+
+void push(int elt) //入栈
+{ 
+   stack[stacklength] = elt; //元素elt压入栈stack
+   top = elt; //栈顶元素top赋值为elt
+   stacklength++; //栈长度加1
+} 
+
+int is_Vt() //判断栈顶元素是否为终结符，如果是返回1，否则返回-1
+{ 
+   int i; 
+   int hot=0; 
+   for (i=0;i<VTNUM;i++) { 
+      if(top == Vt_array[i].kind) 
+         hot = 1; 
+   } 
+   if (top == 999) 
+      hot = 0; 
+   if (hot == 1) 
+      return 1; 
+   else 
+      return -1; 
+} 
+
+int is_ll1array(int cutchar)  //当栈顶元素为非终结符时，判断LL1分析表中行号为栈顶元素，列号为要匹配的单词cutchar的表格单元是否存在产生式，存在返回1，不存在返回-1
+{ 
+   int i,j; 
+   i=Vn_idx();  //读取栈顶元素top中的非终结符在数组Vn_array[]中的下标号，返回该下标号
+   j=Vt_idx(cutchar);     // 读取单词编码为cutchar的终结符在数组Vt_array[]中的下标号，返回该下标号
+   if (LL1_array[i][j] == " ") //如果LL1分析表的第i行第j列的表格中存储的是" "，意味着有错误，说明源代码有语法错误
+      return -1; 
+   else 
+      return 1; 
+} 
+
+int Vn_idx() //读取栈顶元素top中的非终结符在数组Vn_array[]中的下标号，返回该下标号
+{ 
+   for(int i=0;i<VNNUM;i++) //在数组Vn_array[]中查找值为栈顶元素top的元素，并返回该元素的下标号
+   { 
+	  if (top == Vn_array[i].kind) 
+		return i;       
+   } 
+   return -1; //如果没找到就返回-1
+} 
+
+int Vt_idx(int idx_array) //读取单词编码为idx_array的终结符在数组Vt_array[]中的下标号，返回该下标号
+{ 
+   for(int i=0;i<VTNUM;i++)  //在数组Vt_array[]中查找值为idx_array的元素，并返回该元素的下标号
+   { 
+      if (idx_array == Vt_array[i].kind) 
+         return i; 
+   } 
+   return -1;   //如果没找到就返回-1
+} 
+
+void reve(int code[],int n) //将存放在code[]中的产生式逆序
+{ 
+   int temp;
+   for(int i=0,j=n-1;i<=j;i++,j--)  
+   {
+		temp=code[i];
+		code[i]=code[j];
+		code[j]=temp;
+   }
+
+} 
+int printerror() 
+{ 
+   printf("这不是一句合法的句子，无法推导！分析不成功"); 
+   return 1; 
+} 

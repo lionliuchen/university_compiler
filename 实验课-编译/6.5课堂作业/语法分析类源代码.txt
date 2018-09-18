@@ -1,0 +1,152 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.IO;
+
+
+namespace compiler
+{
+ 
+   public  class CSyntax
+    {
+
+        const int NTNUM = 51;
+        const int TNUM = 80;
+        public static int iListPos = 0;  //iListPos用于标记单词在单词流中的位置
+   	//m_iParseTbl用于存储预测分析表
+        private static int[][] m_iParseTbl;
+	//m_szProductList用于存储产生式
+        private static List<string> m_szProductList=new List<string> ();
+        //m_ParseStack是语法分析过程中用到的栈
+	private static Stack<int> m_ParseStack=new Stack<int> ();
+
+       public static string Path = System.IO.Directory.GetCurrentDirectory();
+
+
+        private static void EnStack(string szProduct)
+	//入栈
+        {
+            if (szProduct.Length <= 0)
+            {
+                return;
+            }
+            for (int i = szProduct.Length - 3; i >= 0; i = i - 3)
+            {
+                m_ParseStack.Push(Convert.ToInt32(szProduct.Substring(i, 3).ToString()));
+            }
+        }
+        private static bool DeStack(ref int iTop)
+	//出栈
+        {
+            if (m_ParseStack.Count <= 0)
+                return false;
+            else
+            {
+                iTop = m_ParseStack.Pop();
+                return true;
+            }
+ 
+        }
+        private static void ClearStack()
+	//清空栈
+        {
+            m_ParseStack.Clear();
+
+        }
+        public CSyntax()
+        {
+            
+        }
+
+        public static void Init()
+        {
+            
+            List<int []> list = new List<int[]>();
+            Path = System.IO.Directory.GetCurrentDirectory();
+	    //将预测分析表文件ll1.txt读入内存，存放到m_iParseTbl中
+            FileStream fs = new FileStream(Path+"\\sys\\ll1.txt", FileMode.Open, FileAccess.Read); 
+            StreamReader sr = new StreamReader(fs);
+            string line = "";
+            while ((line = sr.ReadLine()) != null)
+            {
+                string[] strArr = line.Split(new char[]{' '}, StringSplitOptions.RemoveEmptyEntries);
+                int[] dblArr = new int[strArr.Length];
+                for (int i = 0; i < dblArr.Length; i++) 
+                    dblArr[i] = int.Parse(strArr[i]);
+                list.Add(dblArr);
+            }    
+            m_iParseTbl= list.ToArray();
+
+	    //将产生式文件product_zx_tmp_2.txt的所有产生式读入到内存m_szProductList中
+
+            FileStream fsp = new FileStream(Path + "\\sys\\product_zx_tmp_2.txt", FileMode.Open, FileAccess.Read); 
+            StreamReader srp = new StreamReader(fsp);
+            line = "";
+            while ((line = srp.ReadLine()) != null)
+            {
+                m_szProductList.Add(line);
+            }
+        }
+
+
+        public static  bool SyntaxParse()
+	//语法分析
+        {
+
+            iListPos = 0;
+            int iRow = 0, iCol = 0, iVal = 0;
+            ClearStack();//清空栈
+            m_ParseStack.Push(200);//压入文法的开始符
+            while (m_ParseStack.Count > 0 && iListPos < CLex.m_pTokenList.Count)
+	    //当栈m_ParseStack不为空并且iListPos指示的当前单词不是单词流CLex.m_pTokenList的末尾，则进行语法分析
+            {
+                if (DeStack(ref iVal))
+                {
+                    if (iVal == 0)
+                        continue;
+                    if (iVal < 200)
+                    {
+                        if (iVal == CLex.m_pTokenList[iListPos].m_iKind )
+                           iListPos++;
+                        else
+                        {
+                           ErrorProcess.EmitError("语法错误", CLex.m_pTokenList[iListPos-1]);
+
+                            break;
+                        }
+                    }
+                    if(iVal >=200 && iVal <300)
+                    {
+                        iCol = CLex.m_pTokenList[iListPos].m_iKind;
+                        iRow=iVal-200;
+                        int iTmp=m_iParseTbl[iRow ][iCol ];
+                        if (iTmp == -1)
+                        {
+                            if (iListPos == 0)
+                                ErrorProcess.EmitError("语法错误");
+
+                            else
+                                ErrorProcess.EmitError("语法错误", CLex.m_pTokenList[iListPos - 1]);
+                            break;
+                        }
+                        else
+                            EnStack(m_szProductList[iTmp]);
+                    }
+                    if (iVal > 300)
+                    {
+                        if (!Semantic.FuncLis(iVal - 300))
+                           break;
+                    }
+                }
+            }
+            if (m_ParseStack.Count <= 0 && iListPos == CLex.m_pTokenList.Count)
+                return true;
+            else
+                return false;
+
+ 
+        }
+        
+     }
+}

@@ -1,0 +1,587 @@
+#include <stdio.h>
+# include <stdlib.h>
+#include<string.h>
+#include <ctype.h>
+#include <conio.h>
+
+typedef struct{
+    char name[35];    
+    char sex[8];    
+    char age[3];    
+    char phone[16];                
+}PHLIST;
+PHLIST telepho[100] =
+		{     	{"王五","女","18","13888345234"},
+				{"#张三","女","19","120"},
+                {"李四", "男","18","15902345678"}		 } ;
+int tel_len = 3;
+
+int tel_search()
+{
+    char  a[30],b[30];
+    int   i;
+    printf("--->请输入姓名&电话号:");
+    scanf("%s",a);
+    for(i = 0; i < tel_len;i++)
+	{	
+		if(!strncmp(telepho[i].name,"#",1)||!strncmp(telepho[i].name,"*",1))
+				{	strcpy(b,telepho[i].name+1);
+					if(strcmp(a,b)==0||strcmp(a,b)==0)	break;	 }				/*判断是否有标记（名字），
+																								有则用b数组记下当前i名字（无标记的），然后比较*/
+			if(strcmp(a,telepho[i].name)==0||strcmp(a,telepho[i].phone)==0)
+						break;																			//正常比较
+	}
+		return i;
+}
+
+int phone_type(int a,char *p)
+{ 
+		int t=0;
+	switch(a){
+		 case 11:
+		 { 
+				  if(strncmp("130", p, 3) == 0||strncmp("131", p, 3) == 0||
+					 strncmp("132", p, 3) == 0||strncmp("156", p, 3) == 0||
+					 strncmp("186", p, 3) == 0||strncmp("185", p, 3) == 0)
+					{printf("_____联通电话\n");t++;break;} 														//手机号;1.联通2.电信3.移动
+
+		 		  if(strncmp("133", p, 3) == 0||strncmp("153", p, 3) == 0||
+					 strncmp("189", p, 3) == 0||strncmp("180", p, 3) == 0||
+					 strncmp("181", p, 3) == 0)
+			  {printf("_____电信电话\n");t++;break;}
+
+				  if(strncmp("158", p, 3) == 0||strncmp("159", p, 3) == 0||
+					 strncmp("182", p, 3) == 0||strncmp("183", p, 3) == 0||
+					 strncmp("187", p, 3) == 0||strncmp("188", p, 3) == 0||
+					 strncmp("134", p, 3) == 0||strncmp("135", p, 3) == 0||
+					 strncmp("136", p, 3) == 0||strncmp("137", p, 3) == 0||
+					 strncmp("138", p, 3) == 0||strncmp("139", p, 3) == 0||
+					 strncmp("150", p, 3) == 0||strncmp("151", p, 3) == 0||
+					 strncmp("157", p, 3) == 0||strncmp("152", p, 3) == 0)
+			 {printf("\(移动电话\)\n");t++;break;}
+
+			 }
+				case 14:							//座机号
+				 {
+					 
+						{printf("\(座机号码\)\n");t++;break;} 
+					 }
+						case 3:						//紧急电话
+							 {
+							if(strncmp("110", p, 3) == 0||strncmp("120", p, 3) == 0||strncmp("119", p, 3) == 0)
+										{printf("\(紧急电话\)\n");t++;break;}
+								else
+										printf("\n未知号码???\n");
+							 }
+								 case 	5:			//企业前台电话
+										 {
+									if(strncmp("98", p, 2) == 0||strncmp("95", p, 2) == 0||strncmp("96", p, 2) == 0)
+												{printf("\(企业前台电话\)\n");t++;break;} 
+											}
+									 case 8:			//特殊座机号
+												{
+												if(strncmp("55", p, 2) == 0 )
+													{printf("\(座机号码\)\n");t++;break;} 
+													}
+								 default :
+									 {
+											{break;}
+								 }
+			} 
+			return t;
+}
+
+void tel_output(int i)
+{
+		int k;
+		char *p=telepho[i].phone;
+			printf("%5s	%5s	%5s    %5s_",telepho[i].name,telepho[i].sex,telepho[i].age,telepho[i].phone);
+			k=strlen(telepho[i].phone);
+			phone_type(k,p); 
+			printf("\n");
+}
+
+void Old_File(void)
+{
+		FILE *fp1;
+		int i=tel_len,j,t;
+		char a[100];
+		scanf("%s",a);
+		char filepath[50];
+		printf("请输入原文件位置:");
+		getchar();
+		gets(filepath);
+	 if	((fp1=fopen(filepath,"r"))==NULL)
+			 {	printf("文件没打开！\n");
+				 exit(0);  }       
+			 while(!feof(fp1))
+				{	fscanf(fp1,"%s	%s	%s	%s\n",telepho[i].name,telepho[i].sex,telepho[i].age,telepho[i].phone);	
+					tel_len++;i++;   }												/*向文件fp写入数据*/
+		 if(fclose(fp1) )
+				 printf("没成功");
+			 else
+					printf("成功\n"); 
+}
+
+void tel_add()
+{
+    int   k,s,i = tel_len;
+	char	*p=telepho[i].phone;
+	char str[3];
+while(1){
+    printf("\n--->请输入要添加的姓名:");
+	  scanf("%s",telepho[i].name);
+		 k=strlen(telepho[i].name);
+	if(k<=33)break;
+		else 
+			 {printf("》》输入的姓名错误,请重新输入!!!《《\n");continue;}
+	}
+	   while(1){
+			printf("--->请输入要添加的的性别:");
+			    scanf("%s",&telepho[i].sex);
+				if(strcmp(telepho[i].sex,"男")==0||(!strcmp(telepho[i].sex,"女")))break;
+						else
+							{printf("》》输入的性别错误请,重新输入!!!《《\n");continue;}	  
+	   }
+			while(1){
+					printf("--->请输入要添加的年龄:");
+						scanf("%s",telepho[i].age);
+						k=strlen(telepho[i].age);
+						switch(k)
+							{	case 2:	if((strcmp(telepho[i].age,"0")==1)&&(strcmp(telepho[i].age,"99")==-1))break;
+								case 3: if((strcmp(telepho[i].age,"0")==1)&&(strcmp(telepho[i].age,"150")==-1))break;	
+								default : {printf("》》输入的年龄错误请,重新输入!!!《《\n");continue;}
+						  
+			}	break;	
+		}
+					 while(1){
+						printf("--->请输入要添加的电话:");
+						  scanf("%s",telepho[i].phone);
+							s=strlen(telepho[i].phone);						
+								if(phone_type(s,p)&&
+									strcmp(telepho[i].phone,"0000000000000")==1&&
+									strcmp(telepho[i].phone,"9999999999999")==-1)
+								{tel_len++;break;} 
+							else
+							{printf("》》输入错误,请重新输入《《\n");continue;}
+						 }printf("《《《添加成功》》》\n");
+}
+
+void change()
+{
+    int  k,m = -1;
+	m = tel_search();
+	char *p=telepho[m].phone; 
+		 if(m >= 0&&m<tel_len){
+while(1){
+    printf("--->请输入要修改的姓名:");
+	  scanf("%s",telepho[m].name);
+		 k=strlen(telepho[m].name);
+	if(k<=33)break;
+		else 
+			 {printf("》》输入的姓名错误请重新输入!!!《《\n");continue;}
+	}
+	   while(1){
+			printf("--->请输入要修改的的性别:");
+			    scanf("%s",&telepho[m].sex);
+				if(strcmp(telepho[m].sex,"男")==0||(!strcmp(telepho[m].sex,"女")))break;
+						else
+							{printf("》》输入的性别错误请重新输入!!!《《\n");continue;}	  
+	   }
+			while(1){
+					printf("--->请输入要修改的年龄:");
+						scanf("%s",telepho[m].age);
+						k=strlen(telepho[m].age);
+						switch(k)
+							{	case 2:	if((strcmp(telepho[m].age,"0")==1)&&(strcmp(telepho[m].age,"99")==-1))break;
+								case 3: if((strcmp(telepho[m].age,"0")==1)&&(strcmp(telepho[m].age,"150")==-1))break;	
+								default : {printf("》》输入的年龄错误请,重新输入!!!《《\n");continue;}
+						  
+			}	break;	
+			}		
+					 while(1){
+						printf("--->请输入要修改的电话:");
+						  scanf("%s",telepho[m].phone);
+						  	k=strlen(telepho[m].phone);						
+								if(phone_type(k,p)&&
+									strcmp(telepho[m].phone,"0000000000000")==1&&
+									strcmp(telepho[m].phone,"9999999999999")==-1)
+								{break;} 
+							else
+							{printf("》》输入错误《《,请重新输入\n");continue;}
+				 }      printf("《《修改成功》》\n");
+			 } else
+		   printf("》》记录不存在,请重试!!!《《\n");
+}
+
+void delet()
+{
+    int i = 0;
+    int t = -1;
+    t = tel_search();
+    if(t >=0&&t<tel_len)
+        for(i = t;i <= tel_len-1;i++)
+          {  telepho[i] = telepho[i+1];
+       printf("《《删除成功》》\n");}
+        else
+      printf("》》删除目标不存在《《\n");
+tel_len--;
+}
+
+void	index()
+{
+ int i=0,j,k;
+ char temp[100];
+			/* 姓名数组 */
+		for(; i<tel_len; i++)						/* 排序 */
+				{	k = i;
+			for(j=i+1; j<tel_len; j++)
+				if(strcmp(telepho[k].name,telepho[j].name)<0)
+					k = j;
+				if(k!=i)
+			{
+					strcpy(temp,telepho[i].name);
+				strcpy(telepho[i].name,telepho[k].name);
+				strcpy(telepho[k].name,temp);					/* 交换 */
+			}
+	}printf("-----排序成功-----\n");
+
+}
+
+void add_tag(char *p)
+{	
+	int t=-1;
+	char v,name[35];
+		while(1)	
+		{
+			 t=tel_search();
+			if(t>=0&&t<tel_len)
+				{	printf("--->请选择Tag类型(*/#):\n");
+				   v=getch();
+     if(strncmp("#",telepho[t].name,1)!=0&&strncmp("*",telepho[t].name,1)!=0)
+		     if(v=='*')
+				{	strcpy(name,"* ");
+					strcat(name,telepho[t].name);
+					strcpy(telepho[t].name,name);
+						printf("《《标记成功》》\n");break;	}
+					else if(v=='#')
+						{	strcpy(name,"# ");
+								strcat(name,telepho[t].name);
+									strcpy(telepho[t].name,name); 
+										printf("《《标记成功》》\n");break;	}	
+							else
+							{	printf("》》输入Tag类型错误，请重试《《\n"); continue;	}		
+		   else
+			   {	puts("	已有标记!!!	\n");break;	}
+
+			}
+				else
+				printf("》》没找到该记录《《\n");
+	}		
+}
+
+void dele_tag(char *p)
+{ 
+	 char name[50];
+    if(!strncmp(p,"#",1)||!strncmp(p,"*",1))
+		{ strcpy(name,p+1);
+		    strcpy(p,name); 
+			printf("《《取消标记成功！》》\n"); }
+	else
+		printf("》》您输入的记录未发现标记《《\n");
+}
+
+void Save_File()
+ {	
+	FILE *fp;	
+	int	i;
+		char filepath[50];
+		printf("请输入要保存文件位置:");
+		getchar();
+		gets(filepath);
+		/*打开c:\a.txt文件以写入数据,判断是否存在*/
+	if ((fp=fopen(filepath,"w"))==NULL)
+		{printf("保存错误！");
+				 exit(0);}
+		fprintf(fp,"姓名	性别	年龄	电话号码\n");
+		for ( i=0;i<tel_len;i++ )
+			 fprintf(fp,"%s	%s	%s	%s\n",telepho[i].name,telepho[i].sex,
+				 telepho[i].age,telepho[i].phone);	                                   /*向文件fp写入数据*/
+						fclose(fp);																/*关闭文件*/
+				    printf("《《保存成功》》\n");						 
+}
+
+void meun()
+{
+    printf(" **********************************《<<=Phone Book=>>》**********************************\n");
+    printf("			 1.  添加通讯记录	 2.   查找通讯记录      \n");
+    printf("			 3.  修改通讯记录	 4.   删除通讯记录      \n");
+    printf("			 5.  输出通讯记录	 6.   显示主菜单      \n");
+	printf("			 7.  索引数据		 8.   标记数据（*.黑名单，#.常用联系人）      \n");
+	printf("			 9.  保存数据（*.txt）	 0.   退出管理系统        \n");
+    printf("    *********************************《<=电话簿=>》********************************\n");
+}
+//--------------------------------------------------------------------------------------------------------
+#include <stdio.h>
+#include<iostream>
+using namespace std;
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
+#define MAXNAMENUM	100	/*最多处理100个名字*/
+#define MAXLISTLEN	49
+#define MAXNAME	80		/*最长的姓名*/
+
+typedef struct record		/*结构体定义*/
+{
+	int key;
+	char name[MAXNAME];
+	struct record *next;
+}Record,RECF[MAXLISTLEN];
+
+int modh(int,int);			/*Hash函数(除留余数法)*/
+void chainh(char *name ,RECF ,int,int (*hash)(int,int));
+void prhashlist(int,RECF ); /*输出散列表*/
+int NameToKey(char *name);	/*将字符串转换为关键字*/
+void InputAndCreateHR(int num,int listlen,RECF r);	/*输入姓名并创建哈希表*/
+int HashLen(int n);	/*计算实际表长*/
+int is(int x);		/*判断x是否为素数*/
+int InputNum();		/*确定姓名个数 */
+
+
+/*
+   用链地址法解决冲突的散列造表算法，根据(*hash)()函数造散列表
+   其中参数int(*hash)()是指向函数的指针，它返回一个整数（散列地址）
+*/	
+void chainh(char *name,RECF r,int listlen,int (*hash)(int,int))
+{
+	int addr;
+	Record *p,*q;
+	int k;
+	k=NameToKey(name);			/*把拼音转换为关键字*/
+	addr=(*hash)(k,listlen);
+	if (!r[addr].key)			/*建立链表，地址相等的情况*/
+	{
+		r[addr].key=k;			/*插入*/
+		strcpy(r[addr].name,name);
+	}
+	else if(r[addr].key!=k)			/*建立链表地址没有冲突的情况*/
+	{
+		p=r[addr].next; 
+		q=&r[addr];
+		while(p && p->key!=k)		/*内容不空且其地址与该地址不等*/
+		{
+			q=p; p=p->next;		/*插入*/
+		}
+		if(!p)	/*建立地址内容为空的链表结点*/
+		{
+			p=(Record *)malloc(sizeof(Record));  
+			p->key=k;  
+			strcpy(p->name,name);
+			p->next=NULL; 
+			q->next=p;
+		}
+	}
+}
+
+/* Hash函数(除留余数法) */
+int modh(int k,int listlen)			
+{
+	return(k % listlen);	/*返回模的值*/
+}
+
+/* 输出散列表  */
+void prhashlist(int listlen,RECF r)
+{
+	int i; 
+    Record *p;
+    printf("哈希地址\t链表\n");
+    for(i=0;i<listlen;i++)			/*按顺序输出关键字的地址位置，值，建立的链表*/
+    {
+	if(!r[i].key)			/*如果该地址中内容为空*/
+	    printf("%d\t\t^\n",i);
+        else
+	{
+	    printf("%d\t%s(%d)-->",i,r[i].name,r[i].key);
+            p=r[i].next;
+            while(p)
+            {
+		printf("%s(%d)-->",p->name,p->key); 
+                p=p->next;          
+	    }
+            printf("^\n");
+	}
+    }
+}
+
+/* 把名称的拼音字符转换对应的ASCII，累加后作为关键字 */
+int NameToKey(char *name)
+{
+	int value=0;
+	int i,len;
+	len=strlen(name);
+	for(i=0;i<len;i++)
+		value+=*(name+i);
+	return value;
+}
+
+/* 确定姓名个数 */
+int InputNum()
+{
+	int n;
+	printf("待处理的名字有多少个(3--%d):",MAXNAMENUM);
+	do{
+		scanf("%d",&n);
+	}while(n<=2 && n>MAXNAMENUM);
+	return n;
+}
+
+int is(int x)		/*判断x是否为素数*/
+{
+	int i,k;
+	k=(int)(x/2);
+	for(i=2;i<=k;i++)
+		if(x%k==0)return 0;
+	return 1;
+}
+
+/*
+  根据数据量n，限定平均查找次数为2，故哈希查找表中关键字的
+  最大个数为不大于n/2的最大素数
+*/
+int HashLen(int n)
+{
+	int m;
+	m=n/2;
+	while(m>2 && !is(m))
+		m--;
+	return m;
+}
+
+void InputAndCreateHR(int num,int listlen,RECF r)
+{
+	int i;
+	char name[MAXNAME];
+
+    for(i = 0;i < listlen;i++)		/*初始化哈希表*/
+    {
+		r[i].key = 0; 
+		r[i].name[0]='\0';
+		r[i].next = NULL;
+	}
+	printf("输入%d个姓名(每行一个):\n",num);
+	getchar();
+	for(i=0;i<num;i++)
+	{
+		gets(name);	/*输入名字*/
+		chainh(name,r,listlen,modh);	/*用除留余数法确定关键字在链表中的位置*/
+	}
+}
+
+void m()
+{
+	int num;				/*姓名个数*/
+	RECF r;					/*哈希表*/
+	int listlen;				/*实际哈希表的长度*/
+
+	num=InputNum();				/*输入姓名个数*/
+	listlen=HashLen(num);			/*确定哈希表实际长度*/
+	InputAndCreateHR(num,listlen,r);	/*输入姓名并创建哈希表*/
+	prhashlist(listlen,r);			/*显示哈希表*/
+}
+//---------------------------------------------------------------------------------------------------------
+
+
+int main()
+{
+			int	a,n,i=tel_len-1,t = -1,ss;
+			char 	num,*p=telepho[i].name;
+			meun();
+			printf("——<_请输入一个数字作出选择_>——:");
+	while(1)
+		{	
+				printf("\n");	  
+				num=getch();
+					 if(!(num>='0'&&num<='9'))								
+							{	printf("\n》》》输入错误请输入0~7《《《\n");		//锁定7项功能
+								continue;	}
+           if(num=='0')
+				  {	 printf("*******《<关闭成功,感谢您的使用>》*******\n");
+					 break;	}
+				else
+					 n=num-'0';
+
+						 switch(n)
+				 {
+						   case 1:	{ 
+											printf("（d.导入通讯录/n.新建）");
+													num=getch();
+											 switch(num)
+												 {   case 'd':	
+															 { Old_File();break; }
+														case 'n':
+															{ tel_add();break; }
+														 default :
+															 { printf("\n》》输入错误!!!《《\n"); break; }
+														  }
+										 break;	}
+							case 2:	 {
+								printf("请选择查找方式：(1/n)");
+								scanf("%d",&a);
+								            if(a==1){
+												i=tel_len-1;
+												t = tel_search();
+												if(t>=0&&t<tel_len){
+													printf(" 姓名	  性别	  年龄	  联系电话\n\n");
+													tel_output(t);break; }
+													else
+												printf("》》未找到查询目标,请重试!!!《《\n");break;
+											}else 
+												m();
+											break;
+									 }
+							case 3: 
+											change();
+											break;
+							case 4:
+											delet();
+											break;
+							case 5:
+											i=tel_len-1;
+									printf(" 姓名	  性别	  年龄	  联系电话\n\n");
+										 for(;i>=0;--i)
+												tel_output(i);
+													break;
+							case 6:
+											meun();
+											break;
+							case 7:
+												index();
+												 break;
+							case 8: {	printf("《《请选择是1.添加标记 or 2.删除标记》》\n");
+											num=getch();
+											 if(num=='1')
+												  { add_tag(p);break; }
+												else if(num=='2')
+														{ 	 printf(" 请输入要取消的标记");
+																 i=tel_len-1;
+																	t = tel_search();
+																	if(t>=0&&t<tel_len)
+																	  {	p=telepho[t].name;
+																	     dele_tag(p);break; }
+																	else
+																	printf("》》未找到查询目标,请重试!!!《《\n");
+															 }
+													else
+														  {printf("》》输入错误！《《\n");break; }
+										 }
+							case 9: 
+												{ Save_File();
+												break; }
+						}
+
+			printf("——<_请输入一个数字作出选择_>——:");
+			}
+		return 0;
+}

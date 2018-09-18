@@ -1,0 +1,42 @@
+#include <stdio.h>
+typedef struct
+{
+  int weight;
+  int parent,lchild,rchild;
+}HTNode,*HuffmanTree;
+typedef char * *HuffmanCode;
+void Count(char a[],int w[],int n);//统计每种字符的出现次数，存入到数组w中
+void HuffmanCoding(HuffmanTree HT,HuffmanCode HC,int w[],int n);//构造赫夫曼树，并求赫夫曼编码
+void Print(HuffmanTree HT);//输出HT数组内容到屏幕
+int main()
+{
+	char a[100];//定义字符数组用于存放原文字符串
+    int w[100];//定义用于存放字符出现次数的w数组
+	HuffmanTree HT;//定义HT变量用于存放赫夫曼树
+	HuffmanCode HC;//定义HC变量用于存放赫夫曼编码
+	printf("请输入原文：");
+	scanf("%s",a);//读入原文字符串存放到数组a中
+	int n;
+	printf("请输入字符的种类数目：");
+    scanf("%d",&n);//读入原文字符的种类数目
+
+    Count(a,w,n);//调用函数Count()统计每种字符的出现次数，存入到数组w中
+	HuffmanCoding(HT,HC,w,n);//调用函数HuffmanCoding()，构造赫夫曼树，并求赫夫曼编码
+	Print(HT);//调用Print()函数，输出HT数组内容到屏幕
+	return 0;
+}
+void Count(char a[],int w[],int n)
+//统计每种字符的出现次数，存入到数组w中
+{
+
+}
+void HuffmanCoding(char a[],HuffmanTree HT,HuffmanCode HC,int w[],int n)
+//构造赫夫曼树，并求赫夫曼编码
+{
+
+}
+void Print(HuffmanTree HT)
+//输出HT数组内容到屏幕
+{
+
+}
